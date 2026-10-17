@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [5.1.1] - 2026-10-17
+
+Synced with the Hermes Web Search Plus 5.1.1 engine (5.0.1 → 5.1.1, including the engine parts of 5.1.0). Hermes-plugin-only changes are not ported: profile-scoped keys (catalog rule 11), the native backend, `hermes web-search-plus` commands, Hermes Desktop settings and the Jev key-file removal. Tool names, input schemas and the `.env` loading of the MCP server are unchanged.
+
+### Fixed
+
+- **No provider request starts after the request deadline.** Batch extraction (Firecrawl, Linkup, Serper, Keenable, DonSeTch) keeps pages it already fetched and marks the rest `not tried: request ran out of time`; socket timeouts shrink to the time left; Octen, TinyFish and DonSeTch respect the per-attempt timeout cap; research passes its deadline to every member and to its source extraction (with a short grace to collect pages already returned).
+- **A request that runs out of its own time no longer counts against the provider:** no circuit opens, no latency sample is recorded and, when nothing was sent, no budget unit is used. A retry starts only with at least 1 s left, and the Brave pacer does not wait past the deadline.
+- **Brave's per-second 429 retry moved into the attempt engine.** It respects the deadline and shows as its own try in receipts; with another candidate left, automatic routing falls back instead of waiting.
+- **The per-request provider-attempt budget no longer depends on SQLite;** a configured daily limit fails closed when the ledger cannot be read, and the state store re-probes SQLite 30 s after an I/O error.
+- **Half-open circuit probes release their lease** when the call is budget-blocked, ends without a verdict on the provider (invalid request, internal or contract error) or is interrupted; a half-open retry no longer blocks itself and the failure history stays until a probe succeeds.
+- **`web_extract` returns exactly one result per requested URL, in request order,** also when several providers served the batch. URLs with the same canonical form (`?ref=1` / `?ref=2`) are no longer collapsed, an unmatched provider item is no longer assigned to the first open URL, and content returned under a rewritten URL (`http` → `https`, redirect) is kept instead of paying a second provider.
+- **The provider that served the pages is named** in the header, `routing.provider`, `fallback_used`, the receipt and the cache when a fallback provider took over.
+- **Extract provider names are case-insensitive;** unknown or search-only names return a clean error.
+- **The search cache is keyed by the credentials that produced a result** (read from the process environment), so a changed key or SearXNG instance no longer serves cached results of the old one.
+- **A `jev.api_key` in `config.json` is ignored with a warning** instead of discarding every routing setting in the file.
+- SearXNG error messages and result metadata keep only the instance origin (scheme, host, port).
+- Brave queries are shortened only past Brave's documented 600 characters and 75 words (5.0.1 used 400 and 50).
+- Research names why a provider was skipped (for example "Out of credits or quota at its last call").
+- DonSeTch: a fetch that runs past the deadline keeps the pages fetched before it, and its child process gets the `DONSETCH_*` values through the credentials layer.
+
+### Changed
+
+- New module `web_search_plus_mcp.credentials`: `get_secret` reads the process environment (no resolver is installed here) and `redact_secrets` / `redact_url` are available for status output. The MCP server still loads its `.env` files itself.
+- Provider SDK: `wsp_sdk` exports `RequestDeadlineExceeded`, `deadline_passed()`, `dispatch_timeout(timeout)` and `remaining_seconds()` for providers with their own transport.
+- A partial extraction warning also carries `details.unmatched_count` and extract payloads carry `unmatched_results` for items that answered no requested URL (additive; `details.failed_urls` is unchanged).
+
 ## [5.0.1] - 2026-10-10
 
 Synced with Hermes Web Search Plus 5.0.1. Bug fixes for 5.0.0, no breaking changes; routing, providers and config format stay the same.

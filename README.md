@@ -13,9 +13,13 @@
 
 **Give your AI app better web search and clean page reading.** `web-search-plus-mcp` works with Claude Desktop, Cursor, NanoBot, Hermes, and other MCP apps. It searches across the services you choose, returns the original sources, and can try another service when one fails.
 
-`web-search-plus-mcp 5.0.1` matches Hermes Web Search Plus 5.0.1.
+`web-search-plus-mcp 5.1.1` matches the Hermes Web Search Plus 5.1.1 engine.
 
-### What's new in 5.0.1
+### What's new in 5.1.1
+
+No provider request starts after the request deadline, `web_extract` returns exactly one result per requested URL in request order, the per-request budget no longer depends on SQLite, half-open circuit probes release their lease, and the search cache is keyed by the credentials that produced a result. Brave accepts queries up to its documented 600 characters and 75 words. Hermes-only changes (profile-scoped keys, native backend, `hermes` commands) are not part of this package. See [docs/RELEASE_5_1_1.md](docs/RELEASE_5_1_1.md).
+
+### Earlier: 5.0.1
 
 Bug fixes for 5.0.0: everyday words like "synthesizer" no longer trip the source-only filter, one bad URL no longer sinks a `web_extract` batch (each failed URL gets its own error), empty pages fall back to the next provider, rate-limit waits are capped at 30 s, long queries are shortened for Brave, and auto routing off or a private SearXNG URL no longer break every search. See [docs/RELEASE_5_0_1.md](docs/RELEASE_5_0_1.md).
 

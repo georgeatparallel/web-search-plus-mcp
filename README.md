@@ -13,11 +13,11 @@
 
 **Give your AI app better web search and clean page reading.** `web-search-plus-mcp` works with Claude Desktop, Cursor, NanoBot, Hermes, and other MCP apps. It searches across the services you choose, returns the original sources, and can try another service when one fails.
 
-`web-search-plus-mcp 5.1.1` matches the Hermes Web Search Plus 5.1.1 engine.
+`web-search-plus-mcp 5.1.2` matches the Hermes Web Search Plus 5.1.2 engine (5.1.2 is a planned release, 2026-10-18).
 
-### What's new in 5.1.1
+### What's new in 5.1.2
 
-No provider request starts after the request deadline, `web_extract` returns exactly one result per requested URL in request order, the per-request budget no longer depends on SQLite, half-open circuit probes release their lease, and the search cache is keyed by the credentials that produced a result. Brave accepts queries up to its documented 600 characters and 75 words. Hermes-only changes (profile-scoped keys, native backend, `hermes` commands) are not part of this package. See [docs/RELEASE_5_1_1.md](docs/RELEASE_5_1_1.md).
+5.1.1 was never released, so this covers everything since 5.0.1. No provider request starts after the request deadline, `web_extract` returns exactly one result per requested URL in request order, and each result now carries `requested_url`, the URL you passed in (`url` is where the page was fetched). A rate limit, out-of-credit or auth error partway through a batch keeps the pages already fetched and marks the rest `not tried: …` instead of failing the whole batch, and URLs past the per-call limit of 10 get their own `not tried` row instead of disappearing. The per-request budget no longer depends on SQLite, half-open circuit probes release their lease, and the search cache is keyed by the credentials that produced a result. Brave accepts queries up to its documented 600 characters and 75 words. Hermes-only changes (profile-scoped keys, native backend, `hermes` commands) are not part of this package. See [docs/RELEASE_5_1_2.md](docs/RELEASE_5_1_2.md).
 
 ### Earlier: 5.0.1
 

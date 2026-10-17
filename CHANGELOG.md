@@ -2,9 +2,9 @@
 
 ## [Unreleased]
 
-## [5.1.1] - 2026-10-17
+## [5.1.2] - 2026-10-18
 
-Synced with the Hermes Web Search Plus 5.1.1 engine (5.0.1 → 5.1.1, including the engine parts of 5.1.0). Hermes-plugin-only changes are not ported: profile-scoped keys (catalog rule 11), the native backend, `hermes web-search-plus` commands, Hermes Desktop settings and the Jev key-file removal. Tool names, input schemas and the `.env` loading of the MCP server are unchanged.
+Planned release date; not tagged or published yet. 5.1.1 was never released, so this section covers everything since 5.0.1. Synced with the Hermes Web Search Plus 5.1.2 engine (5.0.1 → 5.1.2, including the engine parts of 5.1.0 and 5.1.1). Hermes-plugin-only changes are not ported: profile-scoped keys (catalog rule 11), the native backend, `hermes web-search-plus` commands, Hermes Desktop settings and the Jev key-file removal. Tool names, input schemas and the `.env` loading of the MCP server are unchanged.
 
 ### Fixed
 
@@ -14,6 +14,8 @@ Synced with the Hermes Web Search Plus 5.1.1 engine (5.0.1 → 5.1.1, including 
 - **The per-request provider-attempt budget no longer depends on SQLite;** a configured daily limit fails closed when the ledger cannot be read, and the state store re-probes SQLite 30 s after an I/O error.
 - **Half-open circuit probes release their lease** when the call is budget-blocked, ends without a verdict on the provider (invalid request, internal or contract error) or is interrupted; a half-open retry no longer blocks itself and the failure history stays until a probe succeeds.
 - **`web_extract` returns exactly one result per requested URL, in request order,** also when several providers served the batch. URLs with the same canonical form (`?ref=1` / `?ref=2`) are no longer collapsed, an unmatched provider item is no longer assigned to the first open URL, and content returned under a rewritten URL (`http` → `https`, redirect) is kept instead of paying a second provider.
+- **A rate limit, out-of-credit or auth error partway through a `web_extract` batch keeps the pages already fetched** (Hermes 5.1.2, `5b689e2`). Firecrawl, Linkup, Serper and Keenable stop the batch at a provider-wide error and mark the URL that failed and the URLs not yet tried with the cause, e.g. `not tried: provider rate limit reached`. Only those URLs go to the next provider. The attempt is reported as `partial`, keeps the error in its receipt and opens the circuit; the batch is never retried at the same provider. Partial results are not cached. If the error comes on the first URL, the attempt fails as before. Serper and Keenable now report these errors to the circuit breaker; before, a 429 turned into a per-URL error on every URL. A DonSeTch session failure partway through a batch keeps the pages already fetched.
+- **URLs past `bounded_context.max_urls` (default 10) get their own row** (Hermes 5.1.2, `76a0d2f`): `error: "not tried: limit of 10 URLs per call reached"`, in request order, in the legacy projection and in the MCP `web_extract` output. They used to vanish with only a note in `limits_applied`.
 - **The provider that served the pages is named** in the header, `routing.provider`, `fallback_used`, the receipt and the cache when a fallback provider took over.
 - **Extract provider names are case-insensitive;** unknown or search-only names return a clean error.
 - **The search cache is keyed by the credentials that produced a result** (read from the process environment), so a changed key or SearXNG instance no longer serves cached results of the old one.
@@ -22,6 +24,10 @@ Synced with the Hermes Web Search Plus 5.1.1 engine (5.0.1 → 5.1.1, including 
 - Brave queries are shortened only past Brave's documented 600 characters and 75 words (5.0.1 used 400 and 50).
 - Research names why a provider was skipped (for example "Out of credits or quota at its last call").
 - DonSeTch: a fetch that runs past the deadline keeps the pages fetched before it, and its child process gets the `DONSETCH_*` values through the credentials layer.
+
+### Added
+
+- **`web_extract` results carry `requested_url`**, the URL you passed in, next to `url` (where the page was fetched, after redirects and normalization). Two inputs such as `?ref=a` and `?ref=b` that end on one `url` can now be told apart without relying on order. MCP-only and additive: `url` is unchanged and the canonical v3 response and `schemas/v3` are untouched.
 
 ### Changed
 

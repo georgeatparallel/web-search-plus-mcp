@@ -70,3 +70,114 @@ def test_requests_within_the_cap_get_no_extra_rows():
 
     assert [item["url"] for item in projected["results"]] == urls
     assert not any(item.get("error") for item in projected["results"])
+
+
+def test_requested_url_tells_inputs_apart_when_the_final_url_is_shared():
+    urls = ["https://example.com/?ref=a", "https://example.com/?ref=b"]
+
+    def answer(batch, *args, **kwargs):
+        # The provider reports the page without the tracking parameter.
+        return {"provider": "firecrawl", "results": [_page(url, "https://example.com") for url in batch]}
+
+    projected = _extract_through_projection(urls, answer)
+
+    assert [item["url"] for item in projected["results"]] == ["https://example.com"] * 2
+    assert [item["requested_url"] for item in projected["results"]] == urls
+    assert [item["content"] for item in projected["results"]] == [f"text of {url}" for url in urls]
+
+
+def test_requested_url_follows_request_order_when_the_provider_reorders():
+    urls = [f"https://example.com/page-{index}" for index in range(3)]
+
+    def answer(batch, *args, **kwargs):
+        return {"provider": "firecrawl", "results": [_page(url) for url in reversed(batch)]}
+
+    projected = _extract_through_projection(urls, answer)
+
+    assert [item["requested_url"] for item in projected["results"]] == urls
+    assert [item["content"] for item in projected["results"]] == [f"text of {url}" for url in urls]
+
+
+def test_failed_urls_keep_their_requested_url():
+    urls = ["https://example.com/ok", "https://example.com/bad"]
+
+    def answer(batch, *args, **kwargs):
+        return {
+            "provider": "firecrawl",
+            "results": [
+                _page(urls[0]),
+                {"url": urls[1], "requested_url": urls[1], "title": "", "content": "", "error": "Firecrawl scrape failed",
+                 "provider": "firecrawl"},
+            ],
+        }
+
+    projected = _extract_through_projection(urls, answer)
+
+    assert [item["requested_url"] for item in projected["results"]] == urls
+    assert "error" not in projected["results"][0]
+    assert projected["results"][1]["error"]
+
+
+def test_blocked_urls_keep_their_requested_url():
+    urls = ["https://example.com/ok", "http://127.0.0.1/admin"]
+
+    projected = _extract_through_projection(urls, _answer)
+
+    assert [item["requested_url"] for item in projected["results"]] == urls
+    assert projected["results"][1]["error"]
+
+
+def test_rate_limit_midway_keeps_pages_and_labels_every_url():
+    from web_search_plus_mcp.http_client import ProviderRequestError
+
+    urls = [f"https://example.com/page-{index}" for index in range(4)]
+
+    def make_request(_api, _headers, body, timeout=0):
+        if body["url"] == urls[2]:
+            raise ProviderRequestError("Rate limited", status_code=429)
+        return {"success": True, "data": {"markdown": f"text of {body['url']}", "metadata": {"title": "T"}}}
+
+    # Drive the real Firecrawl adapter instead of a fixed answer.
+    with mock.patch.dict(os.environ, {"FIRECRAWL_API_KEY": "fc-test"}, clear=True), mock.patch.object(
+        providers, "make_request", side_effect=make_request
+    ):
+        request = legacy_request_to_v3(Capability.EXTRACT, {"urls": urls, "provider": "firecrawl"})
+        response = extract.run_extract_request_v3(request, config=extract.load_config()).to_dict()
+    projected = server._project_v3_payload(response, capability="extract", urls=urls)
+
+    assert [item["requested_url"] for item in projected["results"]] == urls
+    assert [bool(item["content"]) for item in projected["results"]] == [True, True, False, False]
+    assert "rate limit" in projected["results"][2]["error"]
+    assert projected["results"][3]["error"] == "not tried: provider rate limit reached"
+    assert any(item["outcome"] == "partial" for item in projected["provider_attempts"])
+
+
+def test_results_that_do_not_line_up_with_the_request_get_no_requested_url():
+    payload = {
+        "results": [{
+            "url": {"observed": "https://example.com/a", "canonical": "https://example.com/a"},
+            "text": {"text": "body"},
+        }],
+        "limits_applied": {"extract": {
+            "processed_urls": ["https://example.com/a", "https://example.com/b"],
+            "omitted_urls": [],
+        }},
+    }
+
+    projected = server._project_v3_payload(payload, capability="extract")
+
+    assert projected["results"] == [{"url": "https://example.com/a", "content": "body"}]
+
+
+def test_search_results_have_no_requested_url():
+    payload = {
+        "results": [{
+            "url": {"observed": "https://example.com/a", "canonical": "https://example.com/a"},
+            "title": {"text": "T"},
+            "snippet": {"text": "S"},
+        }],
+    }
+
+    projected = server._project_v3_payload(payload, capability="search", query="q")
+
+    assert "requested_url" not in projected["results"][0]

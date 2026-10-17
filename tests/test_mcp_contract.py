@@ -413,6 +413,7 @@ def test_extract_cache_hit_projection_preserves_body_and_cache_provenance(monkey
     assert payload["results"] == [{
         "url": "https://example.com/cached",
         "content": "cached full body",
+        "requested_url": "https://example.com/cached",
     }]
     assert payload["cache_status"] == canonical["cache_status"]
     assert payload["provider_attempts"] == []
@@ -476,6 +477,7 @@ def test_extract_projection_preserves_bounds_and_page_on_demand_reference(monkey
     assert payload["results"] == [{
         "url": "https://example.com/a",
         "content": "bounded inline text",
+        "requested_url": "https://example.com/a",
     }]
     assert payload["status"] == "degraded"
     assert payload["limits_applied"]["extract"]["truncated"] is True

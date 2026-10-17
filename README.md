@@ -356,6 +356,8 @@ Example MCP arguments:
 }
 ```
 
+Result shape: `results` holds one entry per requested URL, in request order. Each entry has `url` (where the page was actually fetched, after redirects and normalization), `requested_url` (the URL you passed in, so you can match results to inputs without relying on order), `content`, and `error` when the URL failed. URLs past the per-call limit (default 10) and URLs a provider never reached after a rate-limit, credit or auth error come back as their own entries with `error: "not tried: …"`; pages fetched before such an error are kept. `requested_url` is additive: `url` is unchanged.
+
 ## 🧠 Classic Routing v2 examples
 
 - `東京 AI ニュース 今日` → You.com multilingual/current search

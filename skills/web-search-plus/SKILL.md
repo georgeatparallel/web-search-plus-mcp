@@ -75,6 +75,13 @@ Useful parameters:
 Extraction refuses private or internal targets (loopback, RFC1918, cloud
 metadata hosts). That is deliberate; do not try to work around it.
 
+`results` has one entry per requested URL, in request order. Match an entry to
+your input by `requested_url`; `url` is where the page was actually fetched
+(redirects, normalization) and can be shared by several inputs. A failed or
+skipped URL carries an `error`, for example `not tried: provider rate limit
+reached` or `not tried: limit of 10 URLs per call reached`; retry those later
+or with another provider.
+
 Example:
 
 ```json

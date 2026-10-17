@@ -637,6 +637,16 @@ def _project_v3_payload(
                 if isinstance(item.get(field), dict):
                     result[field] = deepcopy(item[field])
         results.append(result)
+    if capability == "extract":
+        extract_limits = (payload.get("limits_applied") or {}).get("extract")
+        omitted = extract_limits.get("omitted_urls") if isinstance(extract_limits, dict) else None
+        if isinstance(omitted, list):
+            # URLs past the per-call fan-out cap were not tried; say so per URL.
+            message = f"not tried: limit of {extract_limits.get('max_urls')} URLs per call reached"
+            results.extend(
+                {"url": str(omitted_url), "content": "", "error": message}
+                for omitted_url in omitted
+            )
     projected["results"] = results
     if capability == "search" and quality_report_requested:
         projected["quality_report"] = _quality_report_from_v3(payload, projected)
